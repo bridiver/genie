@@ -21,28 +21,29 @@ package com.netflix.genie.client;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Multimap;
 import com.netflix.genie.common.messages.BaseResponse;
 import com.netflix.genie.common.exceptions.CloudServiceException;
 
-
-import com.netflix.niws.client.http.HttpClientRequest;
-import com.netflix.niws.client.http.HttpClientRequest.Verb;
-import com.netflix.niws.client.http.HttpClientResponse;
+import com.netflix.client.http.HttpRequest;
+import com.netflix.client.http.HttpRequest.Verb;
+import com.netflix.client.http.HttpResponse;
 import com.netflix.niws.client.http.RestClient;
 import com.netflix.appinfo.CloudInstanceConfig;
 import com.netflix.appinfo.EurekaInstanceConfig;
 import com.netflix.appinfo.MyDataCenterInstanceConfig;
+import com.netflix.client.ClientException;
 import com.netflix.client.ClientFactory;
 import com.netflix.config.ConfigurationManager;
 import com.netflix.discovery.DefaultEurekaClientConfig;
 import com.netflix.discovery.DiscoveryManager;
-
-import javax.ws.rs.core.MultivaluedMap;
-import com.sun.jersey.core.util.MultivaluedMapImpl;
 
 /**
  * Abstract REST client class that is extended to implement specific clients.
@@ -111,38 +112,58 @@ public abstract class BaseGenieClient {
      *            HTTP params (e.g. userName="foo")
      * @param request
      *            Genie request if applicable (for POST), null otherwise
-     * @return response from the Genie Execution Service
+     * @param responseClass
+     *            class name of expected response to be used for unmarshalling
+     *
+     * @return extracted and unmarshalled response from the Genie Execution Service
      * @throws CloudServiceException
      */
-    protected HttpClientResponse executeRequest(Verb verb, String baseRestUri, String uuid,
-            MultivaluedMap<String, String> params, Object request)
+    protected <T extends BaseResponse> T executeRequest(Verb verb, String baseRestUri, String uuid,
+            Multimap<String, String> params, Object request, Class<T> responseClass)
             throws CloudServiceException {
-        HttpClientResponse response = null;
+        HttpResponse response = null;
         String requestUri = buildRequestUri(baseRestUri, uuid);
         try {
-            MultivaluedMapImpl headers = new MultivaluedMapImpl();
-            headers.add("Accept", "application/json");
-
+            // execute an HTTP request on Genie using load balancer
             RestClient genieClient = (RestClient) ClientFactory
                     .getNamedClient(NIWS_CLIENT_NAME_GENIE);
-
-            HttpClientRequest req = HttpClientRequest.newBuilder()
-                    .setVerb(verb).setHeaders(headers).setQueryParams(params)
-                    .setUri(new URI(requestUri)).setEntity(request).build();
-            // logger.debug("Load balancer: " + genieClient.getLoadBalancer());
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .verb(verb).header("Accept", "application/json")
+                    .uri(new URI(requestUri)).entity(request);
+            if (params != null) {
+                Iterator<Entry<String, String>> it = params.entries().iterator();
+                while (it.hasNext()) {
+                    Entry<String, String> next = it.next();
+                    builder.queryParams(next.getKey(), next.getValue());
+                }
+            }
+            HttpRequest req = builder.build();
             response = genieClient.executeWithLoadBalancer(req);
-            if (response != null) {
-                return response;
-            } else {
+
+            // basic error checking
+            if (response == null) {
                 String msg = "Received NULL response from Genie service";
                 logger.error(msg);
                 throw new CloudServiceException(
                         HttpURLConnection.HTTP_INTERNAL_ERROR, msg);
             }
-        } catch (Exception e) {
+
+            // extract/cast/unmarshal and return entity
+            return extractEntityFromClientResponse(response, responseClass);
+        } catch (URISyntaxException e) {
             logger.error("Exception caught while executing request", e);
             throw new CloudServiceException(
                     HttpURLConnection.HTTP_INTERNAL_ERROR, e);
+        } catch (ClientException e) {
+            logger.error("Exception caught while executing request", e);
+            throw new CloudServiceException(
+                    HttpURLConnection.HTTP_INTERNAL_ERROR, e);
+        } finally {
+            // release resources after we are done
+            // this is really really important - or we run out of connections
+            if (response != null) {
+                response.close();
+            }
         }
     }
 
@@ -156,8 +177,8 @@ public abstract class BaseGenieClient {
      *            class name of expected response
      * @return specific response class extracted
      */
-    protected <T extends BaseResponse> T extractEntityFromClientResponse(
-            HttpClientResponse response, Class<T> responseClass)
+    private <T extends BaseResponse> T extractEntityFromClientResponse(
+            HttpResponse response, Class<T> responseClass)
             throws CloudServiceException {
         if (response == null) {
             String msg = "Received null response from Genie Service";
@@ -209,10 +230,6 @@ public abstract class BaseGenieClient {
             throw new CloudServiceException(
                     (status != HttpURLConnection.HTTP_OK) ? status
                             : HttpURLConnection.HTTP_INTERNAL_ERROR, e);
-        } finally {
-            if (response != null) {
-                response.releaseResources(); // this is really really important
-            }
         }
     }
 

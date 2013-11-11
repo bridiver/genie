@@ -20,12 +20,14 @@ package com.netflix.genie.common.model;
 
 import java.io.Serializable;
 import java.net.HttpURLConnection;
+import java.util.Arrays;
 
 import javax.persistence.Cacheable;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,6 +118,13 @@ public class JobInfoElement implements Serializable {
      */
     @Lob
     private String fileDependencies;
+
+    /**
+     * Set of file dependencies, sent as MIME attachments.
+     * This is not persisted in the DB for space reasons.
+     */
+    @Transient
+    private FileAttachment[] attachments;
 
     /**
      * Location of logs being archived to s3.
@@ -214,6 +223,13 @@ public class JobInfoElement implements Serializable {
      * Whether to disable archive logs or not - default is false.
      */
     private boolean disableLogArchival;
+
+    /**
+     * Email address of the user where he expects an email.
+     * This is sent once the genie job completes.
+     */
+    @Lob
+    private String userEmail;
 
     /**
      * Get the cluster name where this job is run.
@@ -582,6 +598,34 @@ public class JobInfoElement implements Serializable {
         this.fileDependencies = fileDependencies;
     }
 
+
+    /**
+     * Get the set of attachments for this job.
+     *
+     * @return the set of attachments for this job
+     */
+    public FileAttachment[] getAttachments() {
+        if (attachments == null) {
+            return null;
+        } else {
+            return Arrays.copyOf(attachments, attachments.length);
+        }
+    }
+
+    /**
+     * Set the attachments for this job.
+     *
+     * @param attachments the attachments for this job
+     */
+    public void setAttachments(FileAttachment[] attachments) {
+        if (attachments == null) {
+            this.attachments = null;
+        } else {
+            this.attachments = Arrays.copyOf(attachments,
+                    attachments.length);
+        }
+    }
+
     /**
      * Get location of pig on s3/hdfs to override default.
      *
@@ -864,5 +908,24 @@ public class JobInfoElement implements Serializable {
      */
     public void setDisableLogArchival(boolean disableLogArchival) {
         this.disableLogArchival = disableLogArchival;
+    }
+
+    /**
+     * Get user email address set for the job.
+     *
+     * @return user email address
+     */
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    /**
+     * Set user Email address for the job.
+     *
+     * @param userEmail
+     *            user email address
+     */
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
     }
 }

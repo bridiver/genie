@@ -31,10 +31,9 @@ import com.netflix.genie.common.messages.PigConfigResponse;
 import com.netflix.genie.common.model.PigConfigElement;
 import com.netflix.genie.common.model.Types;
 
-import com.netflix.niws.client.http.HttpClientRequest.Verb;
-import com.netflix.niws.client.http.HttpClientResponse;
+import com.netflix.client.http.HttpRequest.Verb;
 
-import javax.ws.rs.core.MultivaluedMap;
+import com.google.common.collect.Multimap;
 
 /**
  * Singleton class, which acts as the client library for the Pig Config
@@ -60,18 +59,6 @@ public final class PigConfigServiceClient extends BaseGenieClient {
      */
     private PigConfigServiceClient() throws IOException {
         super();
-    }
-
-    /**
-     * Converts a response to a PigConfigResponse object.
-     *
-     * @param response
-     *            generic response from REST service
-     * @return extracted pig config response
-     */
-    private PigConfigResponse responseToPigConfig(HttpClientResponse response)
-            throws CloudServiceException {
-        return extractEntityFromClientResponse(response, PigConfigResponse.class);
     }
 
     /**
@@ -123,11 +110,10 @@ public final class PigConfigServiceClient extends BaseGenieClient {
         PigConfigRequest request = new PigConfigRequest();
         request.setPigConfig(pigConfigElement);
 
-        HttpClientResponse response = executeRequest(Verb.POST, BASE_REST_URI,
-                null, null, request);
-        PigConfigResponse hcr = responseToPigConfig(response);
+        PigConfigResponse pcr = executeRequest(Verb.POST, BASE_REST_URI,
+                null, null, request, PigConfigResponse.class);
 
-        if ((hcr.getPigConfigs() == null) || (hcr.getPigConfigs().length == 0)) {
+        if ((pcr.getPigConfigs() == null) || (pcr.getPigConfigs().length == 0)) {
             String msg = "Unable to parse pig config from response";
             logger.error(msg);
             throw new CloudServiceException(
@@ -135,7 +121,7 @@ public final class PigConfigServiceClient extends BaseGenieClient {
         }
 
         // return the first (only) pig config
-        return hcr.getPigConfigs()[0];
+        return pcr.getPigConfigs()[0];
     }
 
     /**
@@ -166,11 +152,10 @@ public final class PigConfigServiceClient extends BaseGenieClient {
         PigConfigRequest request = new PigConfigRequest();
         request.setPigConfig(pigConfigElement);
 
-        HttpClientResponse response = executeRequest(Verb.PUT, BASE_REST_URI,
-                pigConfigId, null, request);
-        PigConfigResponse hcr = responseToPigConfig(response);
+        PigConfigResponse pcr = executeRequest(Verb.PUT, BASE_REST_URI,
+                pigConfigId, null, request, PigConfigResponse.class);
 
-        if ((hcr.getPigConfigs() == null) || (hcr.getPigConfigs().length == 0)) {
+        if ((pcr.getPigConfigs() == null) || (pcr.getPigConfigs().length == 0)) {
             String msg = "Unable to parse pig config from response";
             logger.error(msg);
             throw new CloudServiceException(
@@ -178,7 +163,7 @@ public final class PigConfigServiceClient extends BaseGenieClient {
         }
 
         // return the first (only) pig config
-        return hcr.getPigConfigs()[0];
+        return pcr.getPigConfigs()[0];
     }
 
     /**
@@ -195,11 +180,10 @@ public final class PigConfigServiceClient extends BaseGenieClient {
                     "Missing required parameter: pigConfigId");
         }
 
-        HttpClientResponse response = executeRequest(Verb.GET, BASE_REST_URI,
-                pigConfigId, null, null);
-        PigConfigResponse hcr = responseToPigConfig(response);
+        PigConfigResponse pcr = executeRequest(Verb.GET, BASE_REST_URI,
+                pigConfigId, null, null, PigConfigResponse.class);
 
-        if ((hcr.getPigConfigs() == null) || (hcr.getPigConfigs().length == 0)) {
+        if ((pcr.getPigConfigs() == null) || (pcr.getPigConfigs().length == 0)) {
             String msg = "Unable to parse pig config from response";
             logger.error(msg);
             throw new CloudServiceException(
@@ -207,7 +191,7 @@ public final class PigConfigServiceClient extends BaseGenieClient {
         }
 
         // return the first (only) pig config
-        return hcr.getPigConfigs()[0];
+        return pcr.getPigConfigs()[0];
     }
 
     /**
@@ -222,14 +206,13 @@ public final class PigConfigServiceClient extends BaseGenieClient {
      * @throws CloudServiceException
      */
     public PigConfigElement[] getPigConfigs(
-            MultivaluedMap<String, String> params) throws CloudServiceException {
-        HttpClientResponse response = executeRequest(Verb.GET, BASE_REST_URI,
-                null, params, null);
-        PigConfigResponse hcr = responseToPigConfig(response);
+            Multimap<String, String> params) throws CloudServiceException {
+        PigConfigResponse pcr = executeRequest(Verb.GET, BASE_REST_URI,
+                null, params, null, PigConfigResponse.class);
 
         // this will only happen if 200 is returned, and parsing fails for some
         // reason
-        if ((hcr.getPigConfigs() == null) || (hcr.getPigConfigs().length == 0)) {
+        if ((pcr.getPigConfigs() == null) || (pcr.getPigConfigs().length == 0)) {
             String msg = "Unable to parse pig config from response";
             logger.error(msg);
             throw new CloudServiceException(
@@ -237,7 +220,7 @@ public final class PigConfigServiceClient extends BaseGenieClient {
         }
 
         // if we get here, there are non-zero pig config elements - return all
-        return hcr.getPigConfigs();
+        return pcr.getPigConfigs();
     }
 
     /**
@@ -256,11 +239,10 @@ public final class PigConfigServiceClient extends BaseGenieClient {
                     msg);
         }
 
-        HttpClientResponse response = executeRequest(Verb.DELETE, BASE_REST_URI,
-                pigConfigId, null, null);
-        PigConfigResponse hcr = responseToPigConfig(response);
+        PigConfigResponse pcr = executeRequest(Verb.DELETE, BASE_REST_URI,
+                pigConfigId, null, null, PigConfigResponse.class);
 
-        if ((hcr.getPigConfigs() == null) || (hcr.getPigConfigs().length == 0)) {
+        if ((pcr.getPigConfigs() == null) || (pcr.getPigConfigs().length == 0)) {
             String msg = "Unable to parse pig config from response";
             logger.error(msg);
             throw new CloudServiceException(
@@ -268,6 +250,6 @@ public final class PigConfigServiceClient extends BaseGenieClient {
         }
 
         // return the first (only) pig config
-        return hcr.getPigConfigs()[0];
+        return pcr.getPigConfigs()[0];
     }
 }

@@ -19,11 +19,14 @@
 package com.netflix.genie.server.jobmanager.impl;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.activation.DataHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +35,7 @@ import com.netflix.config.ConfigurationManager;
 import com.netflix.genie.common.exceptions.CloudServiceException;
 import com.netflix.genie.common.messages.ClusterConfigResponse;
 import com.netflix.genie.common.model.ClusterConfigElement;
+import com.netflix.genie.common.model.FileAttachment;
 import com.netflix.genie.common.model.JobInfoElement;
 import com.netflix.genie.common.model.Types;
 import com.netflix.genie.common.model.Types.JobStatus;
@@ -89,6 +93,11 @@ public class HadoopJobManager implements JobManager {
      * The value of the environment to be passed to jobs.
      */
     protected String netflixEnvProp;
+
+    /**
+     * The value for the Lipstick job ID, if needed.
+     */
+    protected String lipstickUuidProp;
 
     /**
      * The job info for this job, which is persisted to the database.
@@ -161,6 +170,39 @@ public class HadoopJobManager implements JobManager {
                     HttpURLConnection.HTTP_INTERNAL_ERROR, msg);
         }
         pb.directory(userJobDir);
+
+        // copy over the attachments if they exist
+        if ((ji.getAttachments() != null) && (ji.getAttachments().length > 0)) {
+            for (int i = 0; i < ji.getAttachments().length; i++) {
+                FileAttachment attachment = ji.getAttachments()[i];
+                // basic error checking
+                if ((attachment.getName() == null) || (attachment.getName().isEmpty())) {
+                    String msg = "File attachment is missing required parameter name";
+                    logger.error(msg);
+                    throw new CloudServiceException(
+                            HttpURLConnection.HTTP_BAD_REQUEST, msg);
+                }
+                if (attachment.getData() == null) {
+                    String msg = "File attachment is missing required parameter data";
+                    logger.error(msg);
+                    throw new CloudServiceException(
+                            HttpURLConnection.HTTP_BAD_REQUEST, msg);
+                }
+                // good to go - copy attachments
+                // not checking for 0-byte attachments - assuming they are legitimate
+                try {
+                    FileOutputStream output = new FileOutputStream(cWorkingDir + File.separator + attachment.getName());
+                    DataHandler inputHandler = attachment.getData();
+                    inputHandler.writeTo(output);
+                    output.close();
+                } catch (IOException e) {
+                    String msg = "Unable to copy attachment correctly: " + attachment.getName();
+                    logger.error(msg);
+                    throw new CloudServiceException(
+                            HttpURLConnection.HTTP_INTERNAL_ERROR, msg);
+                }
+            }
+        }
 
         // set environment variables for the process
         Map<String, String> penv = pb.environment();
@@ -279,10 +321,18 @@ public class HadoopJobManager implements JobManager {
         logger.info("called");
 
         genieJobIDProp = GENIE_JOB_ID + "=" + ji.getJobID();
-        netflixEnvProp = NFLX_ENV
-                + "="
+        netflixEnvProp = NFLX_ENV + "="
                 + ConfigurationManager.getConfigInstance().getString(
                         "netflix.environment");
+
+        String lipstickUuidPropName = ConfigurationManager.getConfigInstance().
+                getString("netflix.genie.server.lipstick.uuid.prop.name", "lipstick.uuid.prop.name");
+
+        // set the lipstick job ID, if needed
+        if (ConfigurationManager.getConfigInstance().getBoolean(
+                        "netflix.genie.server.lipstick.enable", false)) {
+            lipstickUuidProp = lipstickUuidPropName + "=" + GENIE_JOB_ID;
+        }
 
         // construct the environment variables
         this.env = initEnv(ji);
@@ -300,7 +350,11 @@ public class HadoopJobManager implements JobManager {
      * @return -D style params including genie job id and netflix environment
      */
     protected String[] getGenieCmdArgs() {
-        return new String[] {"-D", genieJobIDProp, "-D", netflixEnvProp};
+        if (lipstickUuidProp == null) {
+            return new String[] {"-D", genieJobIDProp, "-D", netflixEnvProp};
+        } else {
+            return new String[] {"-D", genieJobIDProp, "-D", netflixEnvProp, "-D", lipstickUuidProp};
+        }
     }
 
     /**
