@@ -31,7 +31,7 @@ def populateProdHive():
       <hiveConfig>
         <name>prodhive</name>
         <type>PROD</type>
-        <s3HiveSiteXml>file:///home/hadoop/.versions/hive-0.11.0/conf/hive-site.xml</s3HiveSiteXml>
+        <s3HiveSiteXml>file:///opt/mapr/hive/hive-0.12/conf/hive-site.xml</s3HiveSiteXml>
         <user>produser</user>
         <status>ACTIVE</status>
         <hiveVersion>0.11</hiveVersion>
@@ -47,7 +47,7 @@ def populateProdPig():
       <pigConfig>
         <name>prodpig</name>
         <type>PROD</type>
-        <s3PigProperties>file:///home/hadoop/.versions/pig-0.11.1/conf/pig.properties</s3PigProperties>
+        <s3PigProperties>file:///opt/mapr/pig/pig-0.11/conf/pig.properties</s3PigProperties>
         <user>produser</user>
         <status>ACTIVE</status>
         <pigVersion>0.11</pigVersion>
@@ -64,9 +64,9 @@ def populateCluster():
         <name>clusterconf-emr</name>
         <prod>true</prod>
         <adHoc>true</adHoc>
-        <s3MapredSiteXml>file:///home/hadoop/.versions/1.0.3/conf/mapred-site.xml</s3MapredSiteXml>
-        <s3CoreSiteXml>file:///home/hadoop/.versions/1.0.3/conf/core-site.xml</s3CoreSiteXml>
-        <s3HdfsSiteXml>file:///home/hadoop/.versions/1.0.3/conf/hdfs-site.xml</s3HdfsSiteXml>
+        <s3MapredSiteXml>file:///opt/mapr/hadoop/hadoop-0.20.2/conf/mapred-site.xml</s3MapredSiteXml>
+        <s3CoreSiteXml>file:///opt/mapr/hadoop/hadoop-0.20.2/conf/core-site.xml</s3CoreSiteXml>
+        <s3HdfsSiteXml>file:///opt/mapr/hadoop/hadoop-0.20.2/conf/hdfs-site.xml</s3HdfsSiteXml>
         <user>produser</user>
         <prodHiveConfigId>hiveconf-prodhive-emr</prodHiveConfigId>
         <prodPigConfigId>pigconf-prodpig-emr</prodPigConfigId>
