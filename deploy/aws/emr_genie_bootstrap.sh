@@ -39,10 +39,10 @@ export CATALINA_OPTS="-Darchaius.deployment.applicationId=genie -Dnetflix.datace
 # Set up directories needed
 mkdir -p /mnt/tomcat/genie-jobs;
 ln -fs /mnt/tomcat/genie-jobs $CATALINA_HOME/webapps
-mkdir -p /home/hadoop/.versions/pig-0.11.1/conf; touch /home/hadoop/.versions/pig-0.11.1/conf/pig.properties
+mkdir -p /opt/mapr/pig/pig-0.11/conf; touch /opt/mapr/pig/pig-0.11/conf/pig.properties
 
 # Set up genie - get the latest from GitHub
-git clone https://github.com/Netflix/genie.git
+git clone https://github.com/korrelate/genie.git
 cd $HOME/genie; ./gradlew clean build -x test
 cd $HOME/genie; ./local_deploy.sh
 
