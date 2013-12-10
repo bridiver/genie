@@ -46,24 +46,36 @@ function copyFiles {
     # copy over the files to/from S3 - retry $NUM_RETRIES times
     i=0
     retVal=0
-    echo "Copying files $SOURCE to $DESTINATION"
-    while true
+
+    # iterate through the files one at a time because MapR doesn't support multiple files in -cp
+    for FILE in $SOURCE
     do
-        $TIMEOUT $S3CP ${SOURCE} ${DESTINATION}/
-        retVal="$?"
-        if [ "$retVal" -eq 0 ]; then
+        echo "Copying file $FILE to $DESTINATION"
+
+        while true
+        do
+            $TIMEOUT $S3CP ${FILE} ${DESTINATION}/
+            retVal="$?"
+            if [ "$retVal" -ne 0 ]; then
+                echo "Will retry in 5 seconds to ensure that this is not a transient error"
+                sleep 5
+                i=$(($i+1))
+            else
+                # got the file, move on to the next one
+                break
+            fi
+
+            # exit with error if done retrying
+            if [ "$i" -eq "$NUM_RETRIES" ]; then
+                echo "Failed to copy files from $SOURCE to $DESTINATION"
+                break
+            fi
+        done
+
+        # couldn't copy one of the files after retrying so exit with error
+        if [ "$retVal" -ne 0 ]; then
             break
-        else
-            echo "Will retry in 5 seconds to ensure that this is not a transient error"
-            sleep 5
-            i=$(($i+1))
         fi
-	
-        # exit with error if done retrying
-        if [ "$i" -eq "$NUM_RETRIES" ]; then
-            echo "Failed to copy files from $SOURCE to $DESTINATION"
-            break
-        fi  
     done
 
     # return 0 or error code from s3cp
